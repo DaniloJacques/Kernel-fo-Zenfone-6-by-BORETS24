@@ -37,7 +37,6 @@
 #include <linux/kthread.h>
 #include <linux/jiffies.h>	/* time_after() */
 #include <linux/slab.h>
-#include <linux/irqdesc.h>
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
 #endif
@@ -78,8 +77,6 @@ int sis_apic_bug = -1;
 
 static DEFINE_RAW_SPINLOCK(ioapic_lock);
 static DEFINE_RAW_SPINLOCK(vector_lock);
-
-static DECLARE_BITMAP(apic_irqs, IRQ_BITMAP_BITS);
 
 static struct ioapic {
 	/*
@@ -1182,10 +1179,6 @@ next:
 		err = 0;
 		break;
 	}
-
-	if (err == 0)
-		set_bit(irq, apic_irqs);
-
 	free_cpumask_var(tmp_mask);
 	return err;
 }
@@ -1213,7 +1206,6 @@ static void __clear_irq_vector(int irq, struct irq_cfg *cfg)
 
 	cfg->vector = 0;
 	cpumask_clear(cfg->domain);
-	clear_bit(irq, apic_irqs);
 
 	if (likely(!cfg->move_in_progress))
 		return;
@@ -1243,9 +1235,6 @@ void __setup_vector_irq(int cpu)
 	raw_spin_lock(&vector_lock);
 	/* Mark the inuse vectors */
 	for_each_active_irq(irq) {
-		if (!test_bit(irq, apic_irqs))
-			continue;
-
 		cfg = irq_get_chip_data(irq);
 		if (!cfg)
 			continue;
@@ -2296,12 +2285,8 @@ static void irq_complete_move(struct irq_cfg *cfg)
 
 void irq_force_complete_move(int irq)
 {
-	struct irq_cfg *cfg;
+	struct irq_cfg *cfg = irq_get_chip_data(irq);
 
-	if (!test_bit(irq, apic_irqs))
-		return;
-
-	cfg = irq_get_chip_data(irq);
 	if (!cfg)
 		return;
 
@@ -2579,9 +2564,6 @@ static inline void init_IO_APIC_traps(void)
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
 	for_each_active_irq(irq) {
-		if (!test_bit(irq, apic_irqs))
-			continue;
-
 		cfg = irq_get_chip_data(irq);
 		if (IO_APIC_IRQ(irq) && cfg && !cfg->vector) {
 			/*

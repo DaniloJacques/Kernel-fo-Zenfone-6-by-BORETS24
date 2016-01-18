@@ -698,15 +698,11 @@ wakeup_cpu_via_init_nmi(int cpu, unsigned long start_ip, int apicid,
 	int id;
 	int boot_error;
 
-	preempt_disable();
-
 	/*
 	 * Wake up AP by INIT, INIT, STARTUP sequence.
 	 */
-	if (cpu) {
-		boot_error = wakeup_secondary_cpu_via_init(apicid, start_ip);
-		goto out;
-	}
+	if (cpu)
+		return wakeup_secondary_cpu_via_init(apicid, start_ip);
 
 	/*
 	 * Wake up BSP by nmi.
@@ -725,9 +721,6 @@ wakeup_cpu_via_init_nmi(int cpu, unsigned long start_ip, int apicid,
 			id = apicid;
 		boot_error = wakeup_secondary_cpu_via_nmi(id, start_ip);
 	}
-
-out:
-	preempt_enable();
 
 	return boot_error;
 }
