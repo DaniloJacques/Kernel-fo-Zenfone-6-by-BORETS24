@@ -65,7 +65,7 @@ obj-$(CONFIG_VIDEO_LM3554) += lm3554.o
 obj-$(CONFIG_VIDEO_LM3559) += lm3559.o
 obj-$(CONFIG_VIDEO_LM3642) += lm3642.o
 
-ccflags-y += -Werror
+#ccflags-y += -Werror
 
 # Add cflags to build camera sensor driver for CTP board
 #ccflags-$(CONFIG_SND_CTP_MACHINE) += -DCSS15

@@ -40,7 +40,7 @@ static int zram_major;
 static struct zram *zram_devices;
 
 /* Module params (documentation at end) */
-static unsigned int num_devices = 1;
+static unsigned int num_devices = 2;
 
 static inline struct zram *dev_to_zram(struct device *dev)
 {

@@ -48,9 +48,9 @@
 
 #define F12_DATA_15_WORKAROUND
 
-
+/*
 #define IGNORE_FN_INIT_FAILURE
-
+*/
 
 #define RPT_TYPE (1 << 0)
 #define RPT_X_LSB (1 << 1)

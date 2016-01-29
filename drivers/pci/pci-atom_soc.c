@@ -23,6 +23,11 @@
 
 #include "pci.h"
 
+static bool mid_pci_power_manageable(struct pci_dev *dev)
+{
+	return true;
+}
+
 static pci_power_t mid_pci_choose_state(struct pci_dev *pdev)
 {
 	return PCI_D3hot;
@@ -39,7 +44,7 @@ static int mid_pci_run_wake(struct pci_dev *dev, bool enable)
 }
 
 static struct pci_platform_pm_ops mid_pci_platform_pm = {
-	.is_manageable = pmu_pci_power_manageable,
+	.is_manageable = mid_pci_power_manageable,
 	.choose_state = mid_pci_choose_state,
 	.sleep_wake = mid_pci_sleep_wake,
 	.run_wake = mid_pci_run_wake,

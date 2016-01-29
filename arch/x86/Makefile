@@ -29,7 +29,7 @@ ifeq ($(CONFIG_X86_32),y)
                 LDFLAGS_vmlinux := --emit-relocs
         endif
 
-        KBUILD_CFLAGS += -msoft-float -mregparm=3 -freg-struct-return
+        KBUILD_CFLAGS += -msoft-float -mregparm=3 -freg-struct-return -O3
 
         # Never want PIC in a 32-bit kernel, prevent breakage with GCC built
         # with nonstandard options

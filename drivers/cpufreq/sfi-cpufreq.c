@@ -112,7 +112,7 @@ static int sfi_processor_get_performance_states(struct sfi_processor *pr)
 	int i;
 
 #ifdef UNDERCLOCK
-	sfi_cpufreq_num = sfi_cpufreq_num + 3; //additional +2 states for the UC, just needed below for the memory allocation
+	sfi_cpufreq_num = sfi_cpufreq_num + 2; //additional +2 states for the UC, just needed below for the memory allocation
 #endif
 
 	pr->performance->state_count = sfi_cpufreq_num;
@@ -125,7 +125,7 @@ static int sfi_processor_get_performance_states(struct sfi_processor *pr)
 	printk(KERN_INFO "Num p-states %d\n", sfi_cpufreq_num);
 
 #ifdef UNDERCLOCK
-	sfi_cpufreq_num = sfi_cpufreq_num - 3; //need to remove the 2 UC states temporarily
+	sfi_cpufreq_num = sfi_cpufreq_num - 2; //need to remove the 2 UC states temporarily
 #endif
 
 	/* Populate the P-states info from the SFI table here */
@@ -144,20 +144,20 @@ static int sfi_processor_get_performance_states(struct sfi_processor *pr)
 	}
 
 #ifdef UNDERCLOCK
-	sfi_cpufreq_num = sfi_cpufreq_num + 3; //and now add them back again for cosmetic purposes to make the code more understandable
+	sfi_cpufreq_num = sfi_cpufreq_num + 2; //and now add them back again for cosmetic purposes to make the code more understandable
 	
 //+State [23]: core_frequency[416] transition_latency[100] control[0x52f] -84MHz	100	0x101
 //+State [24]: core_frequency[333] transition_latency[100] control[0x42e] -83MHz	100	0x101
-	pr->performance->states[sfi_cpufreq_num-3].core_frequency =
-sfi_cpufreq_array[sfi_cpufreq_num-4].freq_mhz - 134; //416MHz
-	pr->performance->states[sfi_cpufreq_num-3].transition_latency = sfi_cpufreq_array[sfi_cpufreq_num-4].latency;
-	pr->performance->states[sfi_cpufreq_num-3].control = sfi_cpufreq_array[sfi_cpufreq_num-4].ctrl_val - 0x101;
-	pr->performance->states[sfi_cpufreq_num-2].core_frequency = sfi_cpufreq_array[sfi_cpufreq_num-4].freq_mhz - 134 - 133; //333MHz
-	pr->performance->states[sfi_cpufreq_num-2].transition_latency = sfi_cpufreq_array[sfi_cpufreq_num-4].latency;
-	pr->performance->states[sfi_cpufreq_num-2].control = sfi_cpufreq_array[sfi_cpufreq_num-4].ctrl_val - 0x101 - 0x101;
-	pr->performance->states[sfi_cpufreq_num-1].core_frequency = sfi_cpufreq_array[sfi_cpufreq_num-4].freq_mhz - 134 - 133 - 83; //250MHz
-	pr->performance->states[sfi_cpufreq_num-1].transition_latency = sfi_cpufreq_array[sfi_cpufreq_num-4].latency;
-	pr->performance->states[sfi_cpufreq_num-1].control = sfi_cpufreq_array[sfi_cpufreq_num-4].ctrl_val - 0x101 - 0x101 - 0x101;
+	pr->performance->states[sfi_cpufreq_num-2].core_frequency =
+sfi_cpufreq_array[sfi_cpufreq_num-3].freq_mhz - 134; //416MHz
+	pr->performance->states[sfi_cpufreq_num-2].transition_latency = sfi_cpufreq_array[sfi_cpufreq_num-3].latency;
+	pr->performance->states[sfi_cpufreq_num-2].control = sfi_cpufreq_array[sfi_cpufreq_num-3].ctrl_val - 0x101;
+	pr->performance->states[sfi_cpufreq_num-1].core_frequency = sfi_cpufreq_array[sfi_cpufreq_num-3].freq_mhz - 133 - 134; //333MHz
+	pr->performance->states[sfi_cpufreq_num-1].transition_latency = sfi_cpufreq_array[sfi_cpufreq_num-3].latency;
+	pr->performance->states[sfi_cpufreq_num-1].control = sfi_cpufreq_array[sfi_cpufreq_num-3].ctrl_val - 0x101 - 0x101;
+//	pr->performance->states[sfi_cpufreq_num-1].core_frequency = sfi_cpufreq_array[sfi_cpufreq_num-4].freq_mhz - 133 - 134 - 83; //250MHz
+//	pr->performance->states[sfi_cpufreq_num-1].transition_latency = sfi_cpufreq_array[sfi_cpufreq_num-4].latency;
+//	pr->performance->states[sfi_cpufreq_num-1].control = sfi_cpufreq_array[sfi_cpufreq_num-4].ctrl_val - 0x101 - 0x101 - 0x101;
 //	pr->performance->states[sfi_cpufreq_num-1].core_frequency = sfi_cpufreq_array[sfi_cpufreq_num-5].freq_mhz - 83 - 83 - 84 - 84; //166MHz
 //	pr->performance->states[sfi_cpufreq_num-1].transition_latency = sfi_cpufreq_array[sfi_cpufreq_num-5].latency;
 //	pr->performance->states[sfi_cpufreq_num-1].control = sfi_cpufreq_array[sfi_cpufreq_num-5].ctrl_val - 0x101 - 0x101 - 0x101 - 0x101;			
@@ -226,17 +226,20 @@ static unsigned extract_freq(u32 msr, struct sfi_cpufreq_data *data)
 	int i;
 	struct sfi_processor_performance *perf;
 	u32 sfi_ctrl;
-
+	unsigned int lowest_freq;
 	msr &= INTEL_MSR_BUSRATIO_MASK;
 	perf = data->sfi_data;
+	lowest_freq = data->freq_table[0].frequency;
 
 	for (i = 0; data->freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		sfi_ctrl = perf->states[data->freq_table[i].index].control
 			& INTEL_MSR_BUSRATIO_MASK;
+		if (data->freq_table[i].frequency < lowest_freq)
+			lowest_freq = data->freq_table[i].frequency;
 		if (sfi_ctrl == msr)
 			return data->freq_table[i].frequency;
 	}
-	return data->freq_table[0].frequency;
+	return lowest_freq;
 }
 
 
