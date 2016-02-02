@@ -6,6 +6,9 @@
 #define KOBJ_PMIC_ATTR(_name, _mode, _show, _store) \
 	struct kobj_attribute _name##_attr = __ATTR(_name, _mode, _show, _store)
 
+/*VDD1 control register offset*/
+#define VDD1CNT_REG 0x0A8
+
 extern int intel_scu_ipc_ioread8(u16 addr, u8 *data);
 extern int intel_scu_ipc_ioread32(u16 addr, u32 *data);
 extern int intel_scu_ipc_readv(u16 *addr, u8 *data, int len);

@@ -44,6 +44,13 @@ extern void register_rpmsg_service(char *name, int id, u32 addr);
 extern int sdhci_pci_request_regulators(void);
 extern unsigned int sfi_get_watchdog_irq(void);
 
+extern int Read_PROJ_ID(void);
+extern int Read_HW_ID(void);
+extern int Read_PCB_ID(void);
+extern int Read_TP_ID(void);
+extern int Read_LCD_ID(void);
+
+
 /* OEMB table */
 struct sfi_table_oemb {
 	struct sfi_table_header header;

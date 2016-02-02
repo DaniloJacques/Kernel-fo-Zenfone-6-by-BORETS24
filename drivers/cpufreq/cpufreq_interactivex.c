@@ -71,8 +71,10 @@ static unsigned int enabled = 0;
 static unsigned int registration = 0;
 static unsigned int suspendfreq = 533000;
 
+
 /* Hi speed to bump to from lo speed when load burst (default max) */
 static u64 hispeed_freq;
+
 
 /* Go to hi speed when CPU load at or above this value. */
 #define DEFAULT_GO_HISPEED_LOAD 95
@@ -87,7 +89,7 @@ static unsigned long min_sample_time;
 /*
  * The sample rate of the timer used to increase frequency
  */
-#define DEFAULT_TIMER_RATE 20 * USEC_PER_MSEC
+#define DEFAULT_TIMER_RATE 15 * USEC_PER_MSEC
 static unsigned long timer_rate;
 
 static int cpufreq_governor_interactivex(struct cpufreq_policy *policy,

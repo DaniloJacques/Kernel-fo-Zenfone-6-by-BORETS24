@@ -57,7 +57,8 @@ struct hsu_port_cfg {
 	void(*hw_set_alt)(int port);
 	void(*hw_set_rts)(int port, int value);
 	void(*hw_set_rts_fixed)(int port, bool enable);
-	void(*hw_suspend)(int port, struct device *dev, irq_handler_t wake_isr);
+        void(*hw_set_lpm)(int port, bool enable);
+        void(*hw_suspend)(int port, struct device *dev, irq_handler_t wake_isr);
 	void(*hw_suspend_post)(int port);
 	void(*hw_resume)(int port, struct device *dev);
 	unsigned int (*hw_get_clk)(void);
@@ -72,7 +73,7 @@ void intel_mid_hsu_suspend(int port, struct device *dev,
 				irq_handler_t wake_isr);
 void intel_mid_hsu_resume(int port, struct device *dev);
 void intel_mid_hsu_rts(int port, int value);
-void intel_mid_hsu_rts_fixed(int port, bool enable);
+void intel_mid_hsu_lpm(int port, bool enable);
 void intel_mid_hsu_switch(int port);
 void intel_mid_hsu_force_cfg(enum hsu_cfg config);
 int intel_mid_hsu_plat_init(int port, ulong plat, struct device *dev);

@@ -218,6 +218,28 @@ static int kobject_deliver_uevent(struct kobject *kobj,
 }
 
 /**
+ * ignore_buffer_uevent - don't buffer uevent
+ *
+ *
+ * @kobj: struct kobject
+ * @action: struct kobject that the action is happening to
+ *
+ * Returns true if the kobject_uevent should not be bufferred and vice visa.
+ * e.g. kobject remove event of rx-0 & tx-0 should not be bufferred since the net-device has already been removed.
+ * re-send after wakeup would result in NULL pointer reference
+ */
+bool not_buffer_uevent(struct kobject *kobj, enum kobject_action action)
+{
+       if ((action == KOBJ_REMOVE) && kobject_name(kobj) &&
+               ((!strncmp(kobject_name(kobj), "rx-0", strlen(kobject_name(kobj)))) ||
+               (!strncmp(kobject_name(kobj), "tx-0", strlen(kobject_name)))))
+               return true;
+
+       return false;
+}
+
+
+/**
  * kobject_uevent_env - send an uevent with environmental data
  *
  * @action: action that is happening
@@ -240,8 +262,8 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	int i = 0;
 	int retval = 0;
 
-	pr_debug("kobject: '%s' (%p): %s\n",
-		 kobject_name(kobj), kobj, __func__);
+	pr_debug("kobject: '%s' (%p), action: %s: %s\n",
+		 kobject_name(kobj), kobj, action_string, __func__);
 
 	/* search the kset we belong to */
 	top_kobj = kobj;
@@ -347,7 +369,8 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	 * there is no unfrozen userspace to receive them.
 	 */
 	mutex_lock(&uevent_buffer_mutex);
-	if (uevent_buffer) {
+	if (uevent_buffer && !not_buffer_uevent(kobj, action)) {
+		pr_debug(KERN_INFO "buffer uevent--\n");
 		struct uevent_buffered *ub;
 		ub = kmalloc(sizeof(*ub), GFP_KERNEL);
 		if (!ub) {
@@ -492,8 +515,10 @@ int uevent_buffer_pm_notify(struct notifier_block *nb,
 {
 	mutex_lock(&uevent_buffer_mutex);
 	if (action == PM_SUSPEND_PREPARE) {
+		pr_debug(KERN_INFO "start buffer uevent--\n");
 		uevent_buffer = true;
 	} else if (action == PM_POST_SUSPEND) {
+		pr_debug(KERN_INFO "start re-send bufferred uevents--\n");
 		struct uevent_buffered *ub, *tmp;
 		list_for_each_entry_safe(ub, tmp, &uevent_buffer_list,
 					 buffer_list) {
