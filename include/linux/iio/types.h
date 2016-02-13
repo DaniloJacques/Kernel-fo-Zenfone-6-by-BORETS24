@@ -30,7 +30,7 @@ enum iio_chan_type {
 	IIO_CCT,
 	IIO_PRESSURE,
 	IIO_RESISTANCE,
-    IIO_QUATERNION,//for MA514
+	IIO_QUATERNION,//for MA514
 };
 
 enum iio_modifier {
@@ -54,7 +54,7 @@ enum iio_modifier {
 	IIO_MOD_LIGHT_RED,
 	IIO_MOD_LIGHT_GREEN,
 	IIO_MOD_LIGHT_BLUE,
-    IIO_MOD_R,//for MA514
+	IIO_MOD_R,//for MA514
 };
 
 #define IIO_VAL_INT 1

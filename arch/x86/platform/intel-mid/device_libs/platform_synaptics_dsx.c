@@ -34,8 +34,7 @@ static int synaptics_gpio_setup(int gpio, bool configure, int dir, int state);
 #define DSX_RESET_ACTIVE_MS 20
 #define DSX_IRQ_FLAGS (IRQF_TRIGGER_FALLING | IRQF_ONESHOT)
 static unsigned char regulator_name[] = "";
-static unsigned char cap_button_codes[] =
-		{};
+static unsigned char cap_button_codes[] = {};
 
 #elif (SYNAPTICS_MODULE == TM1940)
 #define SYNAPTICS_I2C_DEVICE
@@ -51,8 +50,7 @@ static unsigned char cap_button_codes[] =
 #define DSX_RESET_ACTIVE_MS 20
 #define DSX_IRQ_FLAGS (IRQF_TRIGGER_FALLING | IRQF_ONESHOT)
 static unsigned char regulator_name[] = "";
-static unsigned char cap_button_codes[] =
-		{KEY_MENU, KEY_HOME, KEY_BACK, KEY_SEARCH};
+static unsigned char cap_button_codes[] = {KEY_MENU, KEY_HOME, KEY_BACK, KEY_SEARCH};
 
 #elif (SYNAPTICS_MODULE == TM2074)
 #define SYNAPTICS_SPI_DEVICE
@@ -74,8 +72,7 @@ static unsigned char cap_button_codes[] =
 #define DSX_RESET_ACTIVE_MS 20
 #define DSX_IRQ_FLAGS (IRQF_TRIGGER_FALLING | IRQF_ONESHOT)
 static unsigned char regulator_name[] = "";
-static unsigned char cap_button_codes[] =
-		{};
+static unsigned char cap_button_codes[] = {};
 #endif
 
 static struct synaptics_dsx_cap_button_map cap_button_map = {
@@ -93,9 +90,9 @@ static struct synaptics_dsx_board_data dsx_board_data = {
 	.reset_on_state = DSX_RESET_ON_STATE,
 	.reset_delay_ms = DSX_RESET_DELAY_MS,
 	.reset_active_ms = DSX_RESET_ACTIVE_MS,
- 	.gpio_config = synaptics_gpio_setup,
- 	.regulator_name = regulator_name,
- 	.cap_button_map = &cap_button_map,
+	.gpio_config = synaptics_gpio_setup,
+	.regulator_name = regulator_name,
+	.cap_button_map = &cap_button_map,
 #ifdef SYNAPTICS_SPI_DEVICE
 	.byte_delay_us = DSX_SPI_BYTE_DELAY_US,
 	.block_delay_us = DSX_SPI_BLOCK_DELAY_US,
@@ -109,7 +106,6 @@ static struct i2c_board_info bus0_i2c_devices[] = {
 		.platform_data = &dsx_board_data,
 	},
 };
-//static struct spi_board_info spi_devices[] = {};
 #endif
 
 #ifdef SYNAPTICS_SPI_DEVICE
@@ -123,7 +119,6 @@ static struct spi_board_info spi_devices[] = {
 		.platform_data = &dsx_board_data,
 	},
 };
-//static struct i2c_board_info bus4_i2c_devices[] = {};
 #endif
 
 void get_dsx_platformdata(void *info)
@@ -190,7 +185,7 @@ static int __init synaptics_dsx_i2c_init(void)
 	int ret;
 
 	ret = i2c_register_board_info(0, &bus0_i2c_devices, 1);
-	printk("[%s]i2c_register_board_info : %d \n",__func__ ,ret);
+	printk("[%s]i2c_register_board_info : %d \n", __func__, ret);
 
 	return ret;
 }

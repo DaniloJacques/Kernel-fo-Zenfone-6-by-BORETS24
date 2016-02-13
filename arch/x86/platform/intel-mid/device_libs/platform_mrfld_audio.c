@@ -16,6 +16,7 @@
 #include <linux/scatterlist.h>
 #include <linux/init.h>
 #include <linux/sfi.h>
+#include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <asm/intel-mid.h>
 #include <linux/platform_data/intel_mid_remoteproc.h>
@@ -133,4 +134,73 @@ void *merfld_wm8958_audio_platform_data(void *info)
 				RP_MSIC_MRFLD_AUDIO);
 
 	return NULL;
+}
+
+/* TODO: should be removed once IFWI ready */
+/* static const struct i2c_board_info rt5647_board_info = {
+	I2C_BOARD_INFO("rt5647", 0x1b),
+};
+*/
+
+void *merfld_rt5647_audio_platform_data(void *info)
+{
+	struct platform_device *pdev;
+	int ret;
+
+	ret = add_sst_platform_device();
+	if (ret < 0) {
+		pr_err("%s failed to sst_platform device\n", __func__);
+		return NULL;
+	}
+
+	pdev = platform_device_alloc("hdmi-audio", -1);
+	if (!pdev) {
+		pr_err("failed to allocate hdmi-audio platform device\n");
+		return NULL;
+	}
+
+	ret = platform_device_add(pdev);
+	if (ret) {
+		pr_err("failed to add hdmi-audio platform device\n");
+		platform_device_put(pdev);
+		return NULL;
+	}
+
+	pdev = platform_device_alloc("mrfld_rt5647", -1);
+	if (!pdev) {
+		pr_err("failed to allocate mrfld_rt5647 platform device\n");
+		return NULL;
+	}
+
+	ret = platform_device_add(pdev);
+	if (ret) {
+		pr_err("failed to add mrfld_rt5647 platform device\n");
+		platform_device_put(pdev);
+		return NULL;
+	}
+	if (platform_device_add_data(pdev, &mrfld_audio_pdata,
+				     sizeof(mrfld_audio_pdata))) {
+		pr_err("failed to add mrfld_rt5647 platform data\n");
+		platform_device_put(pdev);
+		return NULL;
+	}
+
+	register_rpmsg_service("rpmsg_mrfld_rt5647_audio", RPROC_SCU,
+				RP_MSIC_MRFLD_AUDIO);
+
+	// pr_info("%s Set Realtek I2C slave address to 0x1b!\n", __func__);
+	// i2c_register_board_info(1, &rt5647_board_info, 1);
+	return NULL;
+}
+
+static struct  rt5647_custom_config custom_config = {
+        .format = 6,
+        .rate = 48000,
+        .channels = 2,
+};
+
+void __init *rt5647_platform_data(void *info)
+{
+	struct rt5647_custom_config *cfg = &custom_config;
+	return cfg;
 }

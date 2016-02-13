@@ -1893,13 +1893,19 @@ static int dlp_driver_remove(struct device *dev)
 {
 	struct hsi_client *client = to_hsi_client(dev);
 
-	pr_debug(DRVNAME ": driver removed\n");
+	/* Set TTY as closed to prevent RX/TX transaction */
+	dlp_tty_set_link_valid(1, 0);
 
-	unregister_reboot_notifier(&dlp_drv.nb);
+	pr_debug(DRVNAME ": driver removed\n");
 
 	/* Unregister HSI events */
 	if (hsi_port_claimed(client))
 		hsi_unregister_port_event(client);
+
+	unregister_reboot_notifier(&dlp_drv.nb);
+
+	/* Cleanup all channels */
+	dlp_driver_cleanup();
 
 	/* UnClaim the HSI port */
 	dlp_hsi_port_unclaim();
@@ -1909,30 +1915,15 @@ static int dlp_driver_remove(struct device *dev)
 
 	/* Free allocated memory */
 	dlp_driver_delete();
-
 	return 0;
 }
 
-/**
- * dlp_driver_shutdown - freeze a context from the DLP driver
- * @dev: a reference to the device requiring the context
- *
- * Returns 0 on success or an error code
- *
- * This function is freezing all resources hold by the context attached to the
- * requesting HSI device.
- */
 static void dlp_driver_shutdown(struct device *dev)
 {
 	pr_debug(DRVNAME ": driver shutdown\n");
 
-	/* Set TTY as closed to prevent RX/TX transaction */
-	dlp_tty_set_link_valid(1, 0);
-
-	/* Cleanup all channels */
-	dlp_driver_cleanup();		// Mandatory to stop rx/tx timers
-
-	return;
+	/* Clear context as when removing the driver */
+	dlp_driver_remove(dev);
 }
 
 /*

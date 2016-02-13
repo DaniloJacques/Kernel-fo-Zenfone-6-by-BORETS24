@@ -133,10 +133,6 @@ static void set_ctp_platform_config(void)
 		sst_platform_pdata.pdev_strm_map = ctp_rhb_strm_map;
 		sst_platform_pdata.strm_map_size = ARRAY_SIZE(ctp_rhb_strm_map);
 	}
-	
-	/*force use clv one*/
-	sst_platform_pdata.pdev_strm_map = ctp_rhb_strm_map;
-	sst_platform_pdata.strm_map_size = ARRAY_SIZE(ctp_rhb_strm_map);
 	pr_debug("audio:ctp:strm_map_size %d\n", sst_platform_pdata.strm_map_size);
 }
 static void set_byt_cr_platform_config(void)
@@ -170,7 +166,6 @@ static void set_mrfld_platform_config(void)
 static void  populate_platform_data(void)
 {
 	sst_platform_pdata.spid = &spid;
-#if 0
 	if ((INTEL_MID_BOARD(1, PHONE, CLVTP)) ||
 	    (INTEL_MID_BOARD(1, TABLET, CLVT))) {
 		set_ctp_platform_config();
@@ -194,9 +189,6 @@ static void  populate_platform_data(void)
 	} else {
 		pr_warn("Board not Supported\n");
 	}
-#endif
-	/*force use clv one*/
-	set_ctp_platform_config();	
 }
 
 int add_sst_platform_device(void)

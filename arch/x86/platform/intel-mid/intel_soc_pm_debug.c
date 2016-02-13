@@ -1225,6 +1225,9 @@ static void pmu_stats_logger(bool logging_type, struct seq_file *s)
 	pmu_log_s0ix_lss_blocked(SYS_STATE_S0I2, "lpmp3", s, logging_type);
 	pmu_log_s0ix_lss_blocked(SYS_STATE_S0I3, "s0i3", s, logging_type);
 
+        printk ("dump active wakeup sources:\n");
+        print_active_wakeup_sources();
+
 	if (!logging_type)
 		DEBUG_PRINT(logging_type, s, STATS,
 				"\n----MID_PMU_STATS_LOG_END----\n");

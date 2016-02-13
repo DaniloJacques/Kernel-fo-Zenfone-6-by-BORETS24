@@ -5,6 +5,8 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/ctype.h>
+#include <linux/seq_file.h>
+#include <linux/device.h>
 #include "gpiodebug.h"
 
 struct gpiodebug_data {
@@ -76,6 +78,9 @@ static struct dentry *gpio_root[ARCH_NR_GPIOS];
 static struct gpiodebug_data global_data[ARCH_NR_GPIOS][TYPE_MAX];
 
 static struct dentry *gpiodebug_debugfs_root;
+
+static char *gpio_sleep_buffer;
+static unsigned int len;
 
 struct gpio_control *find_gpio_control(struct gpio_control *control, int num,
 			unsigned type)
@@ -525,6 +530,102 @@ int gpio_debug_register(struct gpio_debug *debug)
 	return 0;
 }
 
+int gpiodump_show(struct seq_file *s, void *unused)
+{
+	struct gpio_chip	*chip = NULL;
+	unsigned		gpio;
+	unsigned int ret = 0;
+
+	if(s == NULL) {
+		if (gpio_sleep_buffer == NULL)
+			gpio_sleep_buffer = kmalloc(20000, GFP_ATOMIC);
+
+		if (gpio_sleep_buffer == NULL) {
+			pr_err("gpiodebug: gpiodump_show allocate memory fail\n");
+			return 0;
+		}
+		memset(gpio_sleep_buffer, 0, sizeof(gpio_sleep_buffer));
+		len = 0;
+	}
+
+	for (gpio = 0; gpio_is_valid(gpio); gpio++) {
+		struct device *dev;
+
+		if (chip == gpio_to_desc(gpio)->chip)
+			continue;
+		chip = gpio_to_desc(gpio)->chip;
+		if (!chip)
+			continue;
+
+		if(s) {
+			seq_printf(s, "%sGPIOs %d-%d", (char *)s->private,
+					chip->base, chip->base + chip->ngpio - 1);
+			dev = chip->dev;
+			if (dev)
+				seq_printf(s, ", %s/%s", dev->bus ? dev->bus->name : "no-bus",
+					dev_name(dev));
+			if (chip->label)
+				seq_printf(s, ", %s", chip->label);
+			if (chip->can_sleep)
+				seq_printf(s, ", can sleep");
+			seq_printf(s, ":\n");
+
+			if (chip->dbg_show_sleep)
+				chip->dbg_show_sleep(s, NULL, chip, 0);
+		} else {
+			len += sprintf(gpio_sleep_buffer + len, "GPIOs %d-%d",
+					chip->base, chip->base + chip->ngpio - 1);
+			dev = chip->dev;
+			if (dev)
+				len += sprintf(gpio_sleep_buffer + len, ", %s/%s", dev->bus ? dev->bus->name : "no-bus",
+					dev_name(dev));
+			if (chip->label)
+				len += sprintf(gpio_sleep_buffer + len, ", %s", chip->label);
+			if (chip->can_sleep)
+				len += sprintf(gpio_sleep_buffer + len, ", can sleep");
+
+			if (chip->dbg_show_sleep) {
+				ret = chip->dbg_show_sleep(NULL, gpio_sleep_buffer,  chip, len);
+				len = ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int gpiodump_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, gpiodump_show, NULL);
+}
+
+static const struct file_operations gpiodump_ops = {
+	.open		= gpiodump_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+static int gpiodumpsleep_show(struct seq_file *s, void *unused)
+{
+	if (gpio_sleep_buffer)
+		seq_printf(s, gpio_sleep_buffer);
+	else
+		seq_printf(s, "device has no suspend or dump disable\n");
+	return 0;
+}
+static int gpiodumpsleep_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, gpiodumpsleep_show, NULL);
+}
+
+static const struct file_operations gpiodumpsleep_ops = {
+	.open		= gpiodumpsleep_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 static int __init gpio_debug_init(void)
 {
 	gpiodebug_debugfs_root = debugfs_create_dir("gpio_debug", NULL);
@@ -536,6 +637,12 @@ static int __init gpio_debug_init(void)
 	/* readme */
 	gpiodebug_create_file("readme", 0400, gpiodebug_debugfs_root,
 		NULL, &gpio_readme_fops);
+
+	/*GPIO dump*/
+	gpiodebug_create_file("gpio_dump", 0400, gpiodebug_debugfs_root,
+		NULL, &gpiodump_ops);
+	gpiodebug_create_file("gpio_dump_sleep", 0400, gpiodebug_debugfs_root,
+		NULL, &gpiodumpsleep_ops);
 
 	return 0;
 }

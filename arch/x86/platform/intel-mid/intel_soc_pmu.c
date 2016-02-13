@@ -19,6 +19,8 @@
 
 #include "intel_soc_pmu.h"
 #include <linux/cpuidle.h>
+#include <linux/lnw_gpio.h>
+#include <linux/gpio.h>
 #include <linux/proc_fs.h>
 #include <asm/stacktrace.h>
 #include <asm/intel_mid_rpmsg.h>
@@ -799,11 +801,12 @@ static void pmu_enumerate(void)
 	unsigned int base_class;
 
 	for_each_pci_dev(pdev) {
+#ifdef CONFIG_SUPPORT_HDMI
 		if ((platform_is(INTEL_ATOM_MRFLD) ||
 			platform_is(INTEL_ATOM_MOORFLD)) &&
 			pdev->device == MID_MRFL_HDMI_DRV_DEV_ID)
 			continue;
-
+#endif
 		/* find the base class info */
 		base_class = pdev->class >> 16;
 
@@ -853,6 +856,55 @@ int pmu_pci_to_indexes(struct pci_dev *pdev, int *index,
 
 	return PMU_SUCCESS;
 }
+
+int pmu_set_pwm(pci_power_t state)
+{
+	struct pmu_ss_states cur_pmssc;
+	int status = 0;
+	u32 pm_cmd_val, new_value;
+
+	memset(&cur_pmssc, 0, sizeof(cur_pmssc));
+	down(&mid_pmu_cxt->scu_ready_sem);
+	status = _pmu2_wait_not_busy();
+	if (status) {
+		up(&mid_pmu_cxt->scu_ready_sem);
+		return status;
+	}
+
+	pmu_read_sss(&cur_pmssc);
+	pm_cmd_val = (D0I3_MASK << (4 * BITS_PER_LSS));
+	new_value = cur_pmssc.pmu2_states[2] & (~pm_cmd_val);
+	mid_pmu_cxt->os_sss[2] &= ~pm_cmd_val;
+
+	if (state != PCI_D0) {
+		pm_cmd_val = (pci_to_platform_state(state) <<
+			(4 * BITS_PER_LSS));
+		new_value |= pm_cmd_val;
+		mid_pmu_cxt->os_sss[2] |= pm_cmd_val;
+	}
+
+	if (new_value == cur_pmssc.pmu2_states[2]) {
+		up(&mid_pmu_cxt->scu_ready_sem);
+		return 0;
+	}
+
+	cur_pmssc.pmu2_states[2] = new_value;
+	status = pmu_issue_interactive_command(&cur_pmssc, false,
+						(state == PCI_D3cold) ? true : false);
+	if (unlikely(status != PMU_SUCCESS)) {
+		dev_dbg(&mid_pmu_cxt->pmu_dev->dev,
+			"Failed to Issue a PM command to PMU2\n");
+		up(&mid_pmu_cxt->scu_ready_sem);
+		return status;
+	}
+
+	status = _pmu2_wait_not_busy_yield();
+	up(&mid_pmu_cxt->scu_ready_sem);
+
+	return status;
+}
+EXPORT_SYMBOL(pmu_set_pwm);
+
 
 static bool update_nc_device_states(int i, pci_power_t state)
 {
@@ -1473,10 +1525,12 @@ int __ref pmu_pci_set_power_state(struct pci_dev *pdev, pci_power_t state)
 		record->real_change = 0;
 	}
 
+#ifdef CONFIG_SUPPORT_HDMI
 	/* Ignore HDMI HPD driver d0ix on LSS 0 on MRFLD */
 	if ((platform_is(INTEL_ATOM_MRFLD) || platform_is(INTEL_ATOM_MOORFLD)) &&
 			pdev->device == MID_MRFL_HDMI_DRV_DEV_ID)
 			goto unlock;
+#endif
 
 	/*in case a LSS is assigned to more than one pdev, we need
 	  *to find the shallowest state the LSS should be put into*/
@@ -2086,6 +2140,21 @@ static struct pci_driver driver = {
 	.shutdown = mid_pmu_shutdown
 };
 
+static vdd1cnt_reg_automode_switch(int automode)
+{
+       u8 value = 0;
+       int ret = 0, vdd1_mode;
+       // write Auto/force PWM  mode to VDD1CNT_REG control register
+       ret = intel_scu_ipc_ioread8(VDD1CNT_REG, &value);
+        if(ret == 0) {
+                vdd1_mode = automode? 0x07 : 0x03;
+                value = (value & 0xF8) | vdd1_mode;
+                ret = intel_scu_ipc_iowrite8(VDD1CNT_REG, value);
+                if(ret)  pr_err("Set VDD1CNT_REG failed\n");
+                else  pr_info("Set VDD1CNT_REG mode to 0x%x\n", vdd1_mode);
+        }
+}
+
 static int standby_enter(void)
 {
 	u32 temp = 0;
@@ -2160,6 +2229,7 @@ static int mid_suspend_prepare(void)
 
 static int mid_suspend_prepare_late(void)
 {
+	vdd1cnt_reg_automode_switch(1);
 	return 0;
 }
 
@@ -2182,6 +2252,7 @@ static int mid_suspend_enter(suspend_state_t state)
 	}
 
 	trace_printk("s3_entry\n");
+	ret = gpiodump_show(NULL, NULL);
 	ret = standby_enter();
 	trace_printk("s3_exit %d\n", ret);
 	if (ret != 0)
@@ -2201,6 +2272,11 @@ static void mid_suspend_end(void)
 	mid_pmu_cxt->suspend_started = false;
 }
 
+static void mid_suspend_finish(void)
+{
+	vdd1cnt_reg_automode_switch(0);
+}
+
 static const struct platform_suspend_ops mid_suspend_ops = {
 	.begin = mid_suspend_begin,
 	.valid = mid_suspend_valid,
@@ -2208,6 +2284,7 @@ static const struct platform_suspend_ops mid_suspend_ops = {
 	.prepare_late = mid_suspend_prepare_late,
 	.enter = mid_suspend_enter,
 	.end = mid_suspend_end,
+	.finish = mid_suspend_finish,
 };
 
 /**

@@ -51,7 +51,9 @@
 #define MID_PMU_CLV_DRV_DEV_ID			0x08EC
 #define MID_PMU_MRFL_DRV_DEV_ID			0x11A1
 
+#ifdef CONFIG_SUPPORT_HDMI
 #define MID_MRFL_HDMI_DRV_DEV_ID		0x11A6
+#endif
 
 /* SRAM address where PANIC START is written */
 #define PMU_PANIC_EMMC_UP_ADDR			0xFFFF3080

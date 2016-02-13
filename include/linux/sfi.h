@@ -73,7 +73,12 @@
 #define SFI_SIG_DEVS		"DEVS"
 #define SFI_SIG_GPIO		"GPIO"
 #define SFI_SIG_OEMB		"OEMB"
+
+#ifdef CONFIG_A500CG
 #define SFI_SIG_OEMR		"OEMR"
+#else
+#define SFI_SIG_OEMR		"OEM1"
+#endif
 
 #define SFI_SIGNATURE_SIZE	4
 #define SFI_OEM_ID_SIZE		6
@@ -174,23 +179,8 @@ struct sfi_gpio_table_entry {
 	u16	pin_no;
 	char	pin_name[SFI_NAME_LEN];
 } __packed;
-/*
-#ifdef CONFIG_PF450CL
-struct sfi_oemr_table_entry {
-	u8      RC_VERSION;
-	u8      SIM_id;
-	u8      EMMC_id;
-	u8      DDR_id;
-	u8      Modem_id;
-	u8  hardware_id;
-	u8  project_id;
-	u8  touch_id;
-	u8  FCAM_id; // sub camera
-	u8  RCAM_id; // main camera
-	u8  lcd_id;
-} __packed;
 
-#elif defined(CONFIG_A500CG)*/
+#ifdef CONFIG_A500CG
 struct sfi_table_oemr {
 	struct sfi_table_header header;
 	u8 pentry[7];
@@ -205,20 +195,25 @@ struct sfi_oemr_table_entry {
 	u8  Camera_8M;
 	u8  tp_id;
 } __packed;
-/*
+
 #else
+struct sfi_table_oemr {
+        struct sfi_table_header header;
+        u8 pentry[8];
+} __packed;
+
 struct sfi_oemr_table_entry {
-	u8	RC_VERSION;
+	u8  IFWI_RC;
+	u8  MiniOS;
 	u8  hardware_id;
 	u8  project_id;
 	u8  lcd_id;
-	u8  touch_id;
-	u8  Camera_1_2M;
-	u8  Camera_3M;
-	u8  Camera_1_2M_Lense;
+	u8  sim_id;
+	u8  CAM_vendor;
+	u8  RF_SKU;
 } __packed;
 
-#endif*//* CONFIG_PF450CL */
+#endif
 
 typedef int (*sfi_table_handler) (struct sfi_table_header *table);
 

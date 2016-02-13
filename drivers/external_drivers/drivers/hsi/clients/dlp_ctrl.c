@@ -444,7 +444,6 @@ static void dlp_ctrl_complete_rx(struct hsi_msg *msg)
 	struct dlp_ctrl_context *ctrl_ctx;
 	struct dlp_command *dlp_cmd = msg->context;
 	struct dlp_command_params params, tx_params;
-	struct dlp_command_params *params_pt = &params;
 	unsigned long flags;
 	int hsi_channel, elp_channel, ret, response, msg_complete, state;
 
@@ -542,6 +541,7 @@ static void dlp_ctrl_complete_rx(struct hsi_msg *msg)
 				/* Set the response params */
 				tx_params.data1 = params.id;
 				tx_params.data2 = 0;
+				struct dlp_command_params *params_pt = &params;
 				tx_params.data3 = CMD_ID_ERR(params_pt, EDLP_ERR_CH_ALREADY_CLOSED);
 				break;
 			}

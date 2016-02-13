@@ -37,14 +37,10 @@
 
 static struct regulator_consumer_supply redhookbay_vprog1_consumer[] = {
 	REGULATOR_SUPPLY("vprog1", "4-0048"), /* lm3554 */
-	REGULATOR_SUPPLY("vprog1", "4-0036"),  // t4k37  t4k35 	//	leong++
+	REGULATOR_SUPPLY("vprog1", "4-0036"), /* ov8830 */
 	REGULATOR_SUPPLY("vprog1", "4-003C"),
 	REGULATOR_SUPPLY("vprog1", "4-0021"),
 	REGULATOR_SUPPLY("vprog1", "4-001A"),
-	REGULATOR_SUPPLY("vprog1", "4-0024"), /* hm2056 */	//	leong
-	REGULATOR_SUPPLY("vprog1", "4-0010"), /* imx219 */	//	leong
-	REGULATOR_SUPPLY("vprog1", "4-0037"), // mn34130 		//	leong++
-
 	/*
 	 * Begin Scaleht / VV board consumers
 	 *
@@ -55,7 +51,6 @@ static struct regulator_consumer_supply redhookbay_vprog1_consumer[] = {
 	 * present on the SFI tables, the consumer entries just won't
 	 * get used.
 	 */
-#if 0		// leong++
 	REGULATOR_SUPPLY("AVDD", "1-001a"), /* wm5102 */
 	REGULATOR_SUPPLY("DBVDD1", "1-001a"), /* wm5102 */
 	REGULATOR_SUPPLY("DBVDD2", "wm5102-codec"),
@@ -63,13 +58,12 @@ static struct regulator_consumer_supply redhookbay_vprog1_consumer[] = {
 	REGULATOR_SUPPLY("CPVDD", "wm5102-codec"),
 	REGULATOR_SUPPLY("SPKVDDL", "wm5102-codec"),
 	REGULATOR_SUPPLY("SPKVDDR", "wm5102-codec"),
-#endif
 	/* End Scaleht / VV board consumers */
 };
 
 static struct regulator_init_data redhookbay_vprog1_data = {
 	.constraints = {
-		.min_uV			= 1200000,		//.min_uV			= 2800000,			leong++
+		.min_uV			= 1200000,
 		.max_uV			= 2800000,
 		.apply_uV		= 1,
 		.valid_ops_mask		= REGULATOR_CHANGE_STATUS
@@ -223,15 +217,11 @@ static void __init atom_regulator_victoriabay_init(void)
 /*** Clovertrail SoC specific regulators ***/
 
 static struct regulator_consumer_supply vprog2_consumer[] = {
-
 	REGULATOR_SUPPLY("vprog2", "4-0048"),
-	REGULATOR_SUPPLY("vprog2", "4-0037"), // mn34130 		//	leong++
-	REGULATOR_SUPPLY("vprog2", "4-0036"),/* t4k37 */	//	leong
+	REGULATOR_SUPPLY("vprog2", "4-0036"),
 	REGULATOR_SUPPLY("vprog2", "4-003C"),
 	REGULATOR_SUPPLY("vprog2", "4-001A"),
 	REGULATOR_SUPPLY("vprog2", "4-0021"),
-	REGULATOR_SUPPLY("vprog2", "4-0010"), /* imx219 */	//	leong++
-//    REGULATOR_SUPPLY("vprog2", "4-0024"), /* hm2056 */  // leong
 };
 
 static struct regulator_init_data vprog2_data = {
@@ -264,15 +254,13 @@ static struct platform_device vprog2_device = {
 
 static struct regulator_consumer_supply vemmc1_consumer[] = {
 	REGULATOR_SUPPLY("vemmc1", "4-003C"),
-	REGULATOR_SUPPLY("vemmc1", "4-0037"), // mn34130 		//	leong++
-	REGULATOR_SUPPLY("vemmc1", "4-0036"),  /* t4k37 */	//	leong
+	REGULATOR_SUPPLY("vemmc1", "4-0036"),
 	REGULATOR_SUPPLY("vemmc1", "4-001A"),
-	REGULATOR_SUPPLY("vemmc1", "4-0010"), /* imx219 */	//	leong
 };
 
 static struct regulator_init_data vemmc1_data = {
 	.constraints = {
-		.min_uV			= 2850000,	//  SNB5072C1_Datasheet_v1p2.pdf   P47     2.850 
+		.min_uV			= 2850000,
 		.max_uV			= 2850000,
 		.apply_uV		= 1,
 		.valid_ops_mask		= REGULATOR_CHANGE_STATUS
@@ -299,6 +287,7 @@ static struct platform_device vemmc1_device = {
 	},
 };
 
+/***********VEMMC2 REGUATOR platform data*************/
 static struct regulator_consumer_supply vemmc2_consumer[] = {
 };
 
@@ -333,7 +322,6 @@ static struct platform_device vemmc2_device = {
 
 static int __init regulator_init(void)
 {
-	mdelay(500);
 	if (intel_mid_identify_cpu() != INTEL_MID_CPU_CHIP_CLOVERVIEW)
 		return 0;
 

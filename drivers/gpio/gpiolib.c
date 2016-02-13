@@ -13,6 +13,8 @@
 #include <linux/idr.h>
 #include <linux/slab.h>
 
+//#include <linux/lnw_gpio.h>
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>
 
@@ -47,29 +49,6 @@
  */
 static DEFINE_SPINLOCK(gpio_lock);
 
-struct gpio_desc {
-	struct gpio_chip	*chip;
-	unsigned long		flags;
-/* flag symbols are bit numbers */
-#define FLAG_REQUESTED	0
-#define FLAG_IS_OUT	1
-#define FLAG_EXPORT	2	/* protected by sysfs_lock */
-#define FLAG_SYSFS	3	/* exported via /sys/class/gpio/control */
-#define FLAG_TRIG_FALL	4	/* trigger on falling edge */
-#define FLAG_TRIG_RISE	5	/* trigger on rising edge */
-#define FLAG_ACTIVE_LOW	6	/* sysfs value has active low */
-#define FLAG_OPEN_DRAIN	7	/* Gpio is open drain type */
-#define FLAG_OPEN_SOURCE 8	/* Gpio is open source type */
-
-#define ID_SHIFT	16	/* add new flags before this one */
-
-#define GPIO_FLAGS_MASK		((1 << ID_SHIFT) - 1)
-#define GPIO_TRIGGER_MASK	(BIT(FLAG_TRIG_FALL) | BIT(FLAG_TRIG_RISE))
-
-#ifdef CONFIG_DEBUG_FS
-	const char		*label;
-#endif
-};
 static struct gpio_desc gpio_desc[ARCH_NR_GPIOS];
 
 #define GPIO_OFFSET_VALID(chip, offset) (offset >= 0 && offset < chip->ngpio)
@@ -121,7 +100,7 @@ static int gpio_chip_hwgpio(const struct gpio_desc *desc)
 /**
  * Convert a GPIO number to its descriptor
  */
-static struct gpio_desc *gpio_to_desc(unsigned gpio)
+struct gpio_desc *gpio_to_desc(unsigned gpio)
 {
 	if (WARN(!gpio_is_valid(gpio), "invalid GPIO %d\n", gpio))
 		return NULL;

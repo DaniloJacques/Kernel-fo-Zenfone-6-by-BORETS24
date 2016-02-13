@@ -33,11 +33,7 @@
 #include <asm/intel_scu_flis.h>
 #include <asm/intel_scu_pmic.h>
 #include <asm/spid.h>
-#include <linux/regulator/consumer.h>
-
 #include "sdhci.h"
-
-#define REQ_COUNT_FMID 200
 
 /* Settle down values copied from broadcom reference design. */
 #define DELAY_CARD_INSERTED	200
@@ -124,7 +120,6 @@ struct sdhci_pci_chip {
 	unsigned int		enctrl1_orig;
 };
 
-extern int sd_power;   //<ASUS_BSP+>
 
 /*****************************************************************************\
  *                                                                           *
@@ -232,8 +227,7 @@ static irqreturn_t sdhci_pci_sd_cd(int irq, void *dev_id)
 	struct sdhci_pci_slot *slot = dev_id;
 	struct sdhci_host *host = slot->host;
 
-	sd_power = 1;   //<ASUS_BSP+>
-	mmc_detect_change(host->mmc, msecs_to_jiffies(200));
+	mmc_detect_change(host->mmc, msecs_to_jiffies(800));
 	return IRQ_HANDLED;
 }
 
@@ -955,7 +949,8 @@ static int intel_moor_sd_probe_slot(struct sdhci_pci_slot *slot)
 {
 	int ret = 0;
 
-	slot->host->mmc->caps2 |= MMC_CAP2_FIXED_NCRC;
+	slot->host->mmc->caps2 |= MMC_CAP2_PWCTRL_POWER |
+	    MMC_CAP2_FIXED_NCRC;
 	if (slot->data)
 		if (slot->data->platform_quirks & PLFM_QUIRK_NO_HOST_CTRL_HW)
 			ret = -ENODEV;
@@ -2193,7 +2188,7 @@ static ssize_t eMMC_total_size(struct device *dev, struct device_attribute *attr
     int i;
 
     chip = pci_get_drvdata(pdev);
-    if (!chip || (pdev->device != PCI_DEVICE_ID_INTEL_CLV_EMMC0))
+    if (!chip || (pdev->device != PCI_DEVICE_ID_INTEL_MOOR_EMMC))
         return 0;
 
     for (i = 0; i < chip->num_slots; i++) {
@@ -2343,15 +2338,6 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	if (host->quirks2 & SDHCI_QUIRK2_ENABLE_MMC_PM_IGNORE_PM_NOTIFY)
 		host->mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY;
 
-	//<ASUS-Wade+>
-    if (slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_CLV_SDIO0) {
-                host->mmc->pm_caps &= ~MMC_PM_KEEP_POWER;
-                host->mmc->caps |= MMC_CAP_HW_RESET;
-                host->mmc->caps2 |= MMC_CAP2_BROKEN_VOLTAGE | MMC_CAP2_DETECT_ON_ERR  | MMC_CAP2_BROKEN_MAX_CLK;
-                 host->mmc->half_max_clk_count = REQ_COUNT_FMID;
-    }
-    //<ASUS-Wade->
-		
 	ret = sdhci_add_host(host);
 	if (ret)
 		goto remove;

@@ -924,7 +924,6 @@ void mmc_sd_go_highspeed(struct mmc_card *card)
  * In the case of a resume, "oldcard" will contain the card
  * we're trying to reinitialise.
  */
-#define SD_ALIVE_TEST_COUNT 100
 static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	struct mmc_card *oldcard)
 {
@@ -932,7 +931,6 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	int err;
 	u32 cid[4];
 	u32 rocr = 0;
-	unsigned long timeout, t1, alive_count;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -1029,30 +1027,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		/*
 		 * Set bus speed.
 		 */
-		host->f_max_card = mmc_sd_get_max_clock(card);
-		mmc_set_clock(host, host->f_max_card);
-
-        if (host->caps2 & MMC_CAP2_BROKEN_MAX_CLK) {
-            /* If MMC_CAP2_BROKEN_MAX_CLK is set, it means the clock quality may not good enough.
-             * So, we need to ensure the card is responsable by asking status. */
-            t1 = jiffies;
-            timeout = jiffies + 10*HZ;
-            while (time_before(jiffies, timeout)) {
-                for (alive_count = 0; alive_count < SD_ALIVE_TEST_COUNT; alive_count++) {
-                    host->half_max_clk_count++;
-                    if (mmc_send_status(card, NULL))
-                        break;
-                }
-                if (alive_count >= SD_ALIVE_TEST_COUNT)
-                    break;
-                msleep(1);
-            }
-            t1 = (unsigned long)jiffies_to_msecs(jiffies - t1);
-            if (t1 > 20) {
-                msleep(1000);
-                pr_info("%s: online in %u ms\n", mmc_hostname(host), t1 + 1000);
-            }
-        }
+		mmc_set_clock(host, mmc_sd_get_max_clock(card));
 
 		/*
 		 * Switch to wider bus (if supported).

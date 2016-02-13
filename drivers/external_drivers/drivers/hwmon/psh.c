@@ -22,7 +22,7 @@
  * PSH IA side driver for Merrifield Platform
  */
 
-#define VPROG2_SENSOR
+//#define VPROG2_SENSOR
 
 #include <linux/device.h>
 #include <linux/init.h>
@@ -49,11 +49,19 @@
 #include <asm/intel-mid.h>
 #include <linux/kct.h>
 
+#include <linux/fs.h> 
+#include <asm/segment.h>
+#include <asm/uaccess.h>
+#include <linux/buffer_head.h>
+
 #ifdef VPROG2_SENSOR
 #include <asm/intel_scu_ipcutil.h>
 #endif
 
 #define APP_IMR_SIZE (1024 * 256)
+
+// Add for reading project ID
+#define PROJECT_NODE_PATH "/sys/module/intel_mid_sfi/parameters/project_id"
 
 static bool disable_psh_recovery = false;
 static bool force_psh_recovery = false;
@@ -81,7 +89,42 @@ struct psh_plt_priv {
 
 static int psh_recovery = 0;
 
+// Add for reading project ID
+// ZE550ML : 0x17
+// ZE551ML : 0x1F
+// ZR550ML : 0x1C
+// ZX550ML : 0x1B
+long getProjectId(void)
+{
+	struct file *fp = NULL;
+	char buffer[256] = {0};
+	mm_segment_t oldfs;
+	long project_id;
+	int ret;
 
+	oldfs = get_fs();
+	set_fs(get_ds());
+	
+    fp = filp_open(PROJECT_NODE_PATH, O_RDONLY, 0);
+    if (IS_ERR(fp)) {
+        psh_err("Open project node fail!!!!\n");
+        return -1;
+    }
+	
+    ret = vfs_read(fp, buffer, sizeof(buffer)-1, &(fp->f_pos));
+	set_fs(oldfs);	
+    filp_close(fp,NULL);
+    if(ret < 0) {
+        psh_err("fail to read PROJECT_NODE_PATH, ret=%d !\n", ret);
+        return -1;
+    }
+
+    ret = strict_strtol(buffer,10,&project_id);
+    psh_err("The project id is = 0x%x\n", project_id);
+	
+    return project_id;
+
+}
 
 int do_psh_recovery(struct psh_ia_priv *psh_ia_data)
 {
@@ -257,6 +300,12 @@ int do_setup_ddr(struct device *dev)
 	intel_scu_ipc_msic_vprog2(1);
 	msleep(500);
 #endif
+
+	if (getProjectId() == 0x1B)
+		snprintf(fname, 40, "psh.bin.zx550ml");
+	else
+		snprintf(fname, 40, "psh.bin");
+/*
 	snprintf(fname, 40, "psh.bin.%04x.%04x.%04x.%04x.%04x.%04x",
 				(int)spid.customer_id,
 				(int)spid.vendor_id,
@@ -264,7 +313,7 @@ int do_setup_ddr(struct device *dev)
 				(int)spid.platform_family_id,
 				(int)spid.product_line_id,
 				(int)spid.hardware_id);
-
+*/
 again:
 	if (!request_firmware(&fw_entry, fname, dev)) {
 		if (!fw_entry)

@@ -29,8 +29,8 @@
 #include <linux/slab.h>
 #include <linux/wakelock.h>
 #include <linux/intel_mid_pm.h>
-#include <linux/proc_fs.h>
 #include <linux/gpio.h>
+#include <linux/proc_fs.h>
 
 #include <trace/events/mmc.h>
 
@@ -86,8 +86,6 @@ MODULE_PARM_DESC(
 	"MMC/SD cards are removable and may be removed during suspend");
 
 //<ASUS_BSP+>
-int sd_power = 1;
-
 static ssize_t sd_power_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos);
 static ssize_t sd_power_proc_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos);
 
@@ -445,18 +443,6 @@ static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
 		complete(&mrq->completion);
 		return -ENOMEDIUM;
 	}
-	
-	if ((host->caps2 & MMC_CAP2_BROKEN_MAX_CLK)) {
-        if ((host->ios.clock == host->f_mid) &&
-            (host->ios.clock < host->f_max_card)) {
-            if (host->half_max_clk_count == 0)
-                /* reset clock rate to f_max */
-                mmc_set_clock(host, host->f_max_card);
-            else
-                host->half_max_clk_count--;
-        }
-    }
-	
 	mmc_start_request(host, mrq);
 	return 0;
 }
@@ -1091,10 +1077,6 @@ static void __mmc_set_clock(struct mmc_host *host, unsigned int hz)
 	if (hz > host->f_max)
 		hz = host->f_max;
 
-	if ((host->caps2 & MMC_CAP2_BROKEN_MAX_CLK) &&
-        (host->half_max_clk_count > 0) && (hz >= host->f_max))
-            hz = host->f_mid;
-
 	host->ios.clock = hz;
 	mmc_set_ios(host);
 }
@@ -1571,9 +1553,19 @@ void mmc_set_driver_type(struct mmc_host *host, unsigned int drv_type)
 static void mmc_power_up(struct mmc_host *host)
 {
 	int bit;
+	int value;      //<ASUS_BSP+>
 
 	if (host->ios.power_mode == MMC_POWER_ON)
 		return;
+
+	//<ASUS_BSP+>
+	if ((strcmp(mmc_hostname(host), "mmc1") == 0) && (gpio_get_value(77) == 0)) {   //SDIO_CD# is low
+		intel_scu_ipc_ioread8(0xAF, &value);
+		value |= 0x02;                          //VSWITCHEN Enable
+		intel_scu_ipc_iowrite8(0xAF, value);
+		printk("%s: Set V_3P30_SW to Enable\n", mmc_hostname(host));
+	}
+	//<ASUS_BSP->
 
 	mmc_host_clk_hold(host);
 
@@ -1633,8 +1625,20 @@ static void mmc_power_up(struct mmc_host *host)
 
 void mmc_power_off(struct mmc_host *host)
 {
+//	int value;      //<ASUS_BSP+>
+
 	if (host->ios.power_mode == MMC_POWER_OFF)
 		return;
+
+//	//<ASUS_BSP+>
+//	if ((strcmp(mmc_hostname(host), "mmc1") == 0) && (gpio_get_value(77) != 0)) {   //SDIO_CD# is high
+//		intel_scu_ipc_ioread8(0xAF, &value);
+//		value &= 0xFD;                          //VSWITCHEN Disable
+//		intel_scu_ipc_iowrite8(0xAF, value);
+//		printk("%s: Set V_3P30_SW to Disable\n", mmc_hostname(host));
+//	}
+//	//<ASUS_BSP->
+
 
 	mmc_host_clk_hold(host);
 
@@ -1819,14 +1823,10 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 	host->detect_change = 1;
 	if ((strcmp(mmc_hostname(host), "mmc1") == 0))
 		pr_info("%s: mmc_detect_change, SD card %s\n",
-			mmc_hostname(host), gpio_get_value(69) ? "removed" : "inserted");
-			// gpio-69 : SD_CD
-	//<ASUS_BSP+>
-	//if (sd_power == 1) {
+			mmc_hostname(host), gpio_get_value(77) ? "removed" : "inserted");
+			// gpio-77 : SD_CD
 	wake_lock(&host->detect_wake_lock);
 	mmc_schedule_delayed_work(&host->detect, delay);
-	//}
-	//<ASUS_BSP->
 }
 
 EXPORT_SYMBOL(mmc_detect_change);
@@ -2538,6 +2538,7 @@ void mmc_rescan(struct work_struct *work)
 		container_of(work, struct mmc_host, detect.work);
 	int i;
 	bool extend_wakelock = false;
+	int value;      //<ASUS_BSP+>
 
 	if (host->rescan_disable) {
 		wake_unlock(&host->detect_wake_lock);
@@ -2603,6 +2604,17 @@ void mmc_rescan(struct work_struct *work)
 		}
 		if (freqs[i] <= host->f_min)
 			break;
+		//<ASUS_BSP+>
+		if (i == (ARRAY_SIZE(freqs) - 1))
+		{
+			if ((strcmp(mmc_hostname(host), "mmc1") == 0) /*&& (gpio_get_value(77) != 0)*/) {   //SDIO_CD# is high
+				intel_scu_ipc_ioread8(0xAF, &value);
+				value &= 0xFD;                          //VSWITCHEN Disable
+				intel_scu_ipc_iowrite8(0xAF, value);
+				printk("%s: Set V_3P30_SW to Disable\n", mmc_hostname(host));
+			}
+		}
+		//<ASUS_BSP->
 	}
 	mmc_release_host(host);
 
@@ -2964,17 +2976,6 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 	unsigned long flags;
 	int err = 0;
 
-	//<ASUS_BSP+>
-	if ((strcmp(mmc_hostname(host), "mmc1") == 0) && (sd_power == 0)) {
-		//mmc_claim_host(host);
-		mmc_detach_bus(host);
-		mmc_power_off(host);
-		//mmc_release_host(host);
-		host->pm_flags = 0;
-		return 0;
-	}
-	//<ASUS_BSP->
-
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
@@ -3095,13 +3096,11 @@ static ssize_t sd_power_proc_write(struct file *file, const char __user *buf, si
 	}
 
 	if ((int)(str[0]) == (0+48)) {		//Disable
-		printk("mmc1: Disable SD card power vccsdio\n");
+		printk("mmc1: Disable SD card power vswitchen\n");
 
-		sd_power = 0;
-		intel_scu_ipc_ioread8(0xd5, &value);
-		value &= 0xF8;
-		value |= 0x04;                          //VCCSDIO off
-		intel_scu_ipc_iowrite8(0xd5, value);
+		intel_scu_ipc_ioread8(0xAF, &value);
+		value &= 0xFD;                          //VSWITCHEN Disable
+		intel_scu_ipc_iowrite8(0xAF, value);
 	}
 
 	return count;

@@ -55,6 +55,9 @@ obj-$(CONFIG_CONNECTOR)		+= connector/
 obj-$(CONFIG_FB_I810)           += video/i810/
 obj-$(CONFIG_FB_INTEL)          += video/intelfb/
 
+# Chih-Hsuan add charger/gauge driver
+obj-$(CONFIG_ASUS_BATTERY)	+= power/ASUS_BATTERY/
+
 obj-$(CONFIG_PARPORT)		+= parport/
 obj-y				+= base/ block/ misc/ mfd/ nfc/
 obj-$(CONFIG_NUBUS)		+= nubus/

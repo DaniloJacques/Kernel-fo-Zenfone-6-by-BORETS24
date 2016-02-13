@@ -55,22 +55,34 @@ static struct hsu_port_cfg *hsu_port_func_cfg;
 static void serial_hsu_command(struct uart_hsu_port *up);
 
 /* called by modem ctrl*/
-void serial_hsu_set_rts_fixed(bool enable)
+void serial_hsu_set_lpm(bool enable)
 {
-	struct hsu_port_cfg *cfg;
+       struct hsu_port_cfg *cfg = NULL;
 
-	if (phsu)
-		cfg = phsu->configs[1];
-	else
-		return;
+       if (phsu)
+       {
+               int i;
+               for(i=0;i<HSU_PORT_MAX;i++)
+                       if(phsu->configs[i])
+                       {
+                           if(phsu->configs[i]->type == modem_port)
+                           {
+                               cfg = phsu->configs[i];
+                               break;
+                           }
+                       }
+                       else
+                           return;
 
-	if (enable) {
-		if (cfg->hw_set_rts_fixed && cfg->type == modem_port)
-			cfg->hw_set_rts_fixed(1, enable);
-	} else {
-		if (cfg->hw_set_rts_fixed && cfg->type == modem_port)
-			cfg->hw_set_rts_fixed(1, enable);
-	}
+              if(cfg == NULL)
+                       return;
+       }
+       else
+               return;
+
+       if (cfg->hw_set_lpm)
+               cfg->hw_set_lpm(1, enable);
+
 }
 
 int hsu_register_board_info(void *inf)
@@ -663,6 +675,14 @@ void intel_dma_do_rx(struct uart_hsu_port *up, u32 int_sts)
 	int count;
 
 	trace_hsu_func_start(up->index, __func__);
+
+	if(!up->dma_inited)
+	{
+		dev_warn(up->dev, "%s DMA not init!\n", __func__);
+		trace_hsu_func_end(up->index, __func__, "notty");
+		return;
+	}
+
 	tty = tty_port_tty_get(&up->port.state->port);
 	if (!tty) {
 		trace_hsu_func_end(up->index, __func__, "notty");

@@ -173,3 +173,13 @@ source "drivers/reset/Kconfig"
 source "drivers/external_drivers/Kconfig"
 
 endmenu
+
+#+++++++++++++++++++++lynn 2014/10/27 FAC++++++++++++++++++++++
+menu "ASUS FACTORY MODE"
+config ASUS_FACTORY_MODE
+bool "ASUS_FACTORY_MODE"
+	default n
+	help
+		This enables support for factory tools testing based on ASUSTek.
+endmenu
+#---------------------lynn 2014/10/27 FAC----------------------

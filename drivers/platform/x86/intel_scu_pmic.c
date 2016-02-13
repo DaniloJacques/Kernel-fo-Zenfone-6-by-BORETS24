@@ -40,8 +40,6 @@
 #define IPC_WWBUF_SIZE    20
 #define IPC_RWBUF_SIZE    20
 
-/*VCC122AON control register offset*/
-#define VCC122AONCNT 0x0c6
 
 static struct kobject *scu_pmic_kobj;
 static struct rpmsg_instance *pmic_instance;
@@ -384,6 +382,7 @@ static struct attribute_group pmic_attr_group = {
 static int pmic_rpmsg_probe(struct rpmsg_channel *rpdev)
 {
 	int ret = 0;
+	u8 value = 0;
 
 	if (rpdev == NULL) {
 		pr_err("rpmsg channel not created\n");
@@ -402,11 +401,14 @@ static int pmic_rpmsg_probe(struct rpmsg_channel *rpdev)
 	/* Initialize rpmsg instance */
 	init_rpmsg_instance(pmic_instance);
 
-	// write 0xb6 to VCC122AON control register for power consumption issue
-	ret= intel_scu_ipc_iowrite8( VCC122AONCNT, 0xb6 );
-	if(ret)  dev_info(&rpdev->dev, "Set VCC122AON failed\n");
-	else     dev_info(&rpdev->dev, "Set VCC122AON to default value (0xb6)\n");
-
+	// write Force PWM mode to VDD1CNT_REG control register
+	ret = intel_scu_ipc_ioread8(VDD1CNT_REG, &value);
+	if(ret == 0) {
+		value = (value & 0xF8) | 0x03;
+		ret = intel_scu_ipc_iowrite8(VDD1CNT_REG, value);
+		if(ret)  dev_info(&rpdev->dev, "Set VDD1CNT_REG failed\n");
+		else  dev_info(&rpdev->dev, "Set VDD1CNT_REG to Force PWM mode\n");
+	}
 	/* Create debugfs for pmic regs */
 	scu_pmic_kobj = kobject_create_and_add(pmic_attr_group.name,
 						kernel_kobj);

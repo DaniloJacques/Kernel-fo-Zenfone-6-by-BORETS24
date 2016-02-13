@@ -42,7 +42,12 @@
 
 #define MDM_MODEM_READY_DELAY	60	/* Modem readiness wait duration (sec) */
 
-extern void serial_hsu_set_rts_fixed(bool);
+extern void serial_hsu_set_lpm(bool);
+extern void xmm2230_disable_spi(bool);
+
+extern void mdm_apcdmp_IMC726X_execute(void);
+extern void mdm_apcdmp_IMC2230_execute(void);
+
 /**
  *  mdm_ctrl_handle_hangup - This function handle the modem reset/coredump
  *  @work: a reference to work queue element
@@ -96,6 +101,12 @@ static int mdm_ctrl_cold_boot(struct mdm_info *mdm)
 		ret = -1;
 		goto end;
 	}
+
+        if (mdm->pdata->mdm_ver == MODEM_2230)
+        {
+                serial_hsu_set_lpm(false);
+                xmm2230_disable_spi(false);
+        }
 
 	mdm_ctrl_launch_timer(mdm, cflash_delay, MDM_TIMER_FLASH_ENABLE);
 
@@ -162,6 +173,26 @@ static int mdm_ctrl_flashing_warm_reset(struct mdm_info *mdm)
 	return 0;
 }
 
+static int mdm_ctrl_ap_req_coredump(struct mdm_info *mdm)
+{
+        int ret = 0;
+        struct mdm_ops *mdm_ops = &mdm->pdata->mdm;
+	struct cpu_ops *cpu = &mdm->pdata->cpu;
+	int rst, wflash_delay;
+
+        if (mdm->pdata->mdm_ver == MODEM_2230)        {
+                pr_info(DRVNAME ": AP REQUEST COREDUMP 1 ");
+                mdm_apcdmp_IMC2230_execute();
+        }
+        else{
+                pr_info(DRVNAME ": AP REQUEST COREDUMP 0 ");
+                mdm_apcdmp_IMC726X_execute();
+        }
+
+        return 0;
+
+
+}
 static int mdm_ctrl_power_off(struct mdm_info *mdm)
 {
 	int ret = 0;
@@ -175,6 +206,11 @@ static int mdm_ctrl_power_off(struct mdm_info *mdm)
 	/* Set the modem state to OFF */
 	mdm_ctrl_set_state(mdm, MDM_CTRL_STATE_OFF);
 
+        if (mdm->pdata->mdm_ver == MODEM_2230)
+        {
+                serial_hsu_set_lpm(true);
+                xmm2230_disable_spi(true);
+        }
 	if (mdm_ops->power_off(mdm)) {
 		pr_err(DRVNAME ": Error MDM power-OFF.");
 		ret = -1;
@@ -187,10 +223,12 @@ static int mdm_ctrl_cold_reset(struct mdm_info *mdm)
 {
 	pr_warn(DRVNAME ": Cold reset requested");
 
-	serial_hsu_set_rts_fixed(true);
-
 	mdm_ctrl_power_off(mdm);
-	mdm_ctrl_cold_boot(mdm);
+        if (mdm->pdata->mdm_ver == MODEM_2230)
+	  usleep_range(1000000,1000000);
+        else
+          usleep_range(30000,30000);
+        mdm_ctrl_cold_boot(mdm);
 
 	return 0;
 }
@@ -263,7 +301,6 @@ static irqreturn_t mdm_ctrl_reset_it(int irq, void *data)
 
 			pr_err(DRVNAME ": IPC READY !\n");
 			mdm_ctrl_set_state(mdm, MDM_CTRL_STATE_IPC_READY);
-			serial_hsu_set_rts_fixed(false);
 		}
 
 		goto out;
@@ -484,7 +521,12 @@ long mdm_ctrl_dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	mdm_state = mdm_ctrl_get_state(mdm);
 
 	switch (cmd) {
-	case MDM_CTRL_POWER_OFF:
+        case MDM_CTRL_AP_REQ_COREDUMP:
+                /* Allowed in any state unless OFF  */
+                mdm_ctrl_ap_req_coredump(mdm);
+                break;
+
+        case MDM_CTRL_POWER_OFF:
 		/* Unconditional power off */
 		mdm_ctrl_power_off(mdm);
 		break;

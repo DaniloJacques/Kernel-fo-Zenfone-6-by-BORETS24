@@ -26,6 +26,9 @@ static struct support_panel_list_t
 	/*  above 3 items will be removed
 	* after firmware changing
 	*/
+		{OTM1284A_VID, "OTM1284A"},
+		{OTM1901A_VID, "OTM1901A"},
+		{NT35596_VID, "NT35596"},
 		{CMI_7x12_CMD, "PNC_CMI_7x12"},
 		{JDI_7x12_VID, "PNV_JDI_7x12"},
 		{JDI_7x12_CMD, "PNC_JDI_7x12"},
